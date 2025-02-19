@@ -234,7 +234,7 @@ image create bitmap ArrowDown -data {
 
 set locale [regsub {(.*)[-_]+(.*)} [::msgcat::mclocale] {\1}]
 if {$locale == "c"} {set locale en}
-set locale en
+#set locale en
 
 set prefix [file rootname $script]
 
@@ -815,15 +815,14 @@ proc convert_gpx_file {file} {
     set data $tail
   }
   append result $data
-  set data $result
 
   # Set QMS track flags depending on collected OM track waypoints:
   # flag = 0	... Constraint points, in QMS always visible
   # flag = 8	... Support points, in QMS visible as dots when editing track
   set prev {}
-  set i [string first "<trkpt" $data]
-  set head [string range $data 0 $i-1]
-  set data [string range $data $i end]
+  set i [string first "<trkpt" $result]
+  set head [string range $result 0 $i-1]
+  set data [string range $result $i end]
   set result $head
   while {[regexp {(^.*?)(<trkpt.*?</trkpt>\s)(.*$)} $data {} head body tail]} {
     append result $head
