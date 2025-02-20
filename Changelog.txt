@@ -1,6 +1,7 @@
 2025-02-20
 
 - Increased conversion speed significantly
+- Activated link to GitHub repository
 
 2025-02-19
 
