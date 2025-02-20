@@ -21,7 +21,7 @@ if {[encoding system] != "utf-8"} {
 if {![info exists tk_version]} {package require Tk}
 wm withdraw .
 
-set version "2025-02-19"
+set version "2025-02-20"
 set script [file normalize [info script]]
 set title [file tail $script]
 set cwd [pwd]
@@ -820,23 +820,29 @@ proc convert_gpx_file {file} {
   # flag = 0	... Constraint points, in QMS always visible
   # flag = 8	... Support points, in QMS visible as dots when editing track
   set prev {}
-  set i [string first "<trkpt" $result]
-  set head [string range $result 0 $i-1]
-  set data [string range $result $i end]
-  set result $head
-  while {[regexp {(^.*?)(<trkpt.*?</trkpt>\s)(.*$)} $data {} head body tail]} {
+  set tail $result
+  set result ""
+   while {1} {
+    set i [string first "<trkpt" $tail]
+    set head [string range $tail 0 $i-1]
+    set tail [string range $tail $i end]
     append result $head
+    if {$i < 0} break
+    set i [string first "</trkpt>" $tail]
+    set body [string range $tail 0 $i-1]
+    set tail [string range $tail $i end]
     regsub {.*lat="(.*?)".*lon="(.*?)".*} $body {\1,\2} next
-    set flag [expr {$next in $latlons} ? 0 : 8]
     if {$next != $prev} {
-      regsub "(</trkpt>)" $body \
-	"<extensions><ql:flags>$flag</ql:flags></extensions>\\1" body
+      set flag [expr {$next in $latlons} ? 0 : 8]
+      append body "<extensions><ql:flags>$flag</ql:flags></extensions>"
       append result $body
       set prev $next
+    } else {
+      set tail [string range $tail 8 end]
     }
-    set data $tail
   }
-  append result $data
+  append result $tail
+
   # Remove empty lines
   regsub -line -all {^\s*$\n?} $result {} result
 
