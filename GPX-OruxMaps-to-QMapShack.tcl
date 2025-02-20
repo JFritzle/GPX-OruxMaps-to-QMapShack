@@ -515,13 +515,13 @@ font create title_font {*}[font configure TkDefaultFont] \
 label .title -text $title -font title_font -fg blue
 pack .title -expand 1 -fill x
 
-#set github https://github.com/JFritzle/GPX-QMapShack-to-OruxMaps
-#tooltip .title $github
-#if {$tcl_platform(platform) == "windows"} \
-#	{set exec "exec cmd.exe /C START {} $github"}
-#if {$tcl_platform(os) == "Linux"} \
-#	{set exec "exec nohup xdg-open $github >/dev/null"}
-#bind .title <Button-1> "catch {$exec}"
+set github https://github.com/JFritzle/GPX-QMapShack-to-OruxMaps
+tooltip .title $github
+if {$tcl_platform(platform) == "windows"} \
+	{set exec "exec cmd.exe /C START {} $github"}
+if {$tcl_platform(os) == "Linux"} \
+	{set exec "exec nohup xdg-open $github >/dev/null"}
+bind .title <Button-1> "catch {$exec}"
 
 frame .f
 pack .f -fill x
