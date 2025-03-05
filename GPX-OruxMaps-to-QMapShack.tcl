@@ -21,7 +21,7 @@ if {[encoding system] != "utf-8"} {
 if {![info exists tk_version]} {package require Tk}
 wm withdraw .
 
-set version "2025-02-20"
+set version "2025-03-05"
 set script [file normalize [info script]]
 set title [file tail $script]
 set cwd [pwd]
@@ -163,8 +163,8 @@ foreach {item option value} {
 . darkcolor $colorWindowFrame
 . lightcolor $colorWindow
 . troughcolor $colorTrough
-. selectbackground $colorWindow
-. selectforeground $colorWindowText
+. selectbackground $colorHighlight
+. selectforeground $colorHighlightText
 TButton borderwidth 2
 TButton padding "{0 -2 0 $yb}"
 TCombobox arrowsize 15
@@ -179,8 +179,8 @@ TButton lightcolor {pressed $colorWindowFrame}
 TButton background {focus $colorFocus pressed $colorFocus}
 TCombobox background {focus $colorFocus pressed $colorFocus}
 TCombobox bordercolor {focus $colorWindowFrame}
-TCombobox selectbackground {focus $colorHighlight}
-TCombobox selectforeground {focus $colorHighlightText}
+TCombobox selectbackground {!focus $colorWindow}
+TCombobox selectforeground {!focus $colorWindowText}
 TCheckbutton background {focus $colorFocus}
 TRadiobutton background {focus $colorFocus}
 Arrow.TButton bordercolor {focus $colorWindowFrame}
@@ -511,7 +511,7 @@ proc error_message {message exit_return} {
 # Title
 
 font create title_font {*}[font configure TkDefaultFont] \
-	-underline 0 -weight bold
+	-underline 1 -weight bold
 label .title -text $title -font title_font -fg blue
 pack .title -expand 1 -fill x
 
@@ -762,10 +762,11 @@ proc convert_gpx_file {file} {
   set body "GPX-OruxMaps-to-QMapShack"
   set data $head$body$tail
 
+  # Get track name
   set i [string first "<trk>" $data]
   regsub -start $i {^(<trk>.*?<trkseg>).*$} $data {\1} trkhead
-  regsub {^.*<name>(?:<!\[CDATA\[)(.*?)(?:\]\]>)</name>.*$} $trkhead \
-	{\1} trkname
+  regsub {^.*?<name>(.*?)</name>.*$} $trkhead {\1} trkname
+  regsub {^(?:<!\[CDATA\[)(.*?)(?:\]\]>)$} $trkname {\1} trkname
   cputx "[mc m62 $trkname] ..."
   update
 
