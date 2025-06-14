@@ -24,7 +24,8 @@ e20	"No GPX file selected"
 
 l01	"File name as project name"
 l02	"Direction waypoints with symbol"
-l03	"Direction waypoints label"
+l03	"Direction waypoints with label"
+l04	"Direction waypoints numbering"
 
 l10	"GPX input files"
 l11	"GPX file"

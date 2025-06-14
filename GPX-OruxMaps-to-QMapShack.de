@@ -25,6 +25,7 @@ e20	"Keine GPX-Datei ausgewählt"
 l01	"Dateiname als Projektname"
 l02	"Richtungs-Wegpunkte mit Symbol"
 l03	"Richtungs-Wegpunkte mit Text"
+l04	"Richtungs-Wegpunkte nummerieren"
 
 l10	"GPX-Eingabedateien"
 l11	"GPX-Datei"

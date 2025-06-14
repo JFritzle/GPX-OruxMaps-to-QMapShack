@@ -1,3 +1,9 @@
+2025-06-14
+
+- Optionally numbering direction waypoints
+- Fixed: GPX files converted by GPX-QMapShack-to-OruxMaps
+  could not get converted back by GPX-OruxMaps-to-QMapShack
+
 2025-05-18
 
 - Fixed: Changed name of OruxMaps icon 1015 to "Keep Left"

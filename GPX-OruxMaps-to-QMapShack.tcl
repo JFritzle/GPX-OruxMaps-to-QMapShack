@@ -21,7 +21,7 @@ if {[encoding system] != "utf-8"} {
 if {![info exists tk_version]} {package require Tk}
 wm withdraw .
 
-set version "2025-03-05"
+set version "2025-06-14"
 set script [file normalize [info script]]
 set title [file tail $script]
 set cwd [pwd]
@@ -326,6 +326,7 @@ file mkdir $ini_folder
 set project.rename 0
 set waypoint.symbols 0
 set waypoint.labels 0
+set waypoint.numbers 0
 set gpx.folder [pwd]
 set gpx.prefix qms
 
@@ -580,18 +581,30 @@ pack .gpx_prefix_value -in .gpx_prefix \
 
 # Rename project?
 
-checkbutton .project_rename -text [mc l01] -variable project.rename
-pack .project_rename -in .f -expand 1 -fill x -pady {2 0}
+checkbutton .rename -text [mc l01] -variable project.rename
 
 # Waypoint symbols?
 
-checkbutton .waypoint_symbols -text [mc l02] -variable waypoint.symbols
-pack .waypoint_symbols -in .f -expand 1 -fill x -pady {2 0}
+checkbutton .symbols -text [mc l02] -variable waypoint.symbols
 
 # Waypoint labels?
 
-checkbutton .waypoint_labels -text [mc l03] -variable waypoint.labels
-pack .waypoint_labels -in .f -expand 1 -fill x -pady {2 0}
+checkbutton .labels -text [mc l03] -variable waypoint.labels \
+	-command labels_onoff
+
+# Numbering turn instructions?
+
+checkbutton .numbers -text [mc l04] -variable waypoint.numbers
+
+foreach item {rename symbols labels numbers} {
+  pack .$item -in .f -expand 1 -fill x -pady {2 0}
+}
+
+proc labels_onoff {} {
+  .labels instate selected {.numbers state !disabled}
+  .labels instate !selected {.numbers state disabled}
+}
+labels_onoff
 
 # Action buttons
 
@@ -669,7 +682,7 @@ proc save_script_settings {} {
   save_settings $::ini_folder/$::settings \
 	window.geometry font.size \
 	console.show console.geometry console.font.size \
-	project.rename waypoint.symbols waypoint.labels \
+	project.rename waypoint.symbols waypoint.labels waypoint.numbers \
 	gpx.folder gpx.prefix
 }
 
@@ -745,7 +758,8 @@ proc run_convert_job {} {
 proc convert_gpx_file {file} {
 
   upvar #0 gpx.prefix prefix project.rename rename \
-	waypoint.labels labels waypoint.symbols symbols
+	waypoint.labels labels waypoint.symbols symbols \
+	waypoint.numbers numbers
 
   cputi "[mc m61 $file] ..."
   set start [clock milliseconds]
@@ -785,6 +799,9 @@ proc convert_gpx_file {file} {
 
   # Map OM waypoints to QMS waypoints
   # Collect constraint track waypoints
+  set n [regexp -all {<om:ext type="ICON" subtype="0">([0-9]+?)</om:ext>} $data]
+  set f "%0[string length $n]d"
+  set n 0
   set latlons {}
   set i [string first "<wpt" $data]
   set head [string range $data 0 $i-1]
@@ -792,7 +809,8 @@ proc convert_gpx_file {file} {
   set result $head
   while {[regexp "(^.*?)(<wpt.*?</wpt>)(.*$)" $data {} head body tail]} {
     append result $head
-    regsub {.*<name>(?:<!\[CDATA\[)(.*?)(?:\]\]>)</name>.*} $body {\1} name
+    regsub {.*<name>(.*?)</name>.*} $body {\1} name
+    regsub {(?:<!\[CDATA\[)(.*?)(?:\]\]>)} $name {\1} name
     regsub {.*<om:ext type="ICON" subtype="0">([0-9]+?)</om:ext>.*} \
 	$body {\1} id
     if {$name == "" || $id == 1} {
@@ -800,16 +818,17 @@ proc convert_gpx_file {file} {
       # id   == 1	... User defined track waypoint
       lappend latlons [regsub {.*lat="(.*?)".*lon="(.*?)".*} $body {\1,\2}]
       set name [get_icon_name $id]
-      if {!$labels} {regsub "<name>.*</name>" $body "" body} \
-      else {regsub "(<name>).*(</name>)" $body "\\1$name\\2" body}
       if {!$symbols} {regsub "(<sym>).*(</sym>)" $body "\\1Waypoint\\2" body} \
       else {regsub "(<sym>).*(</sym>)" $body "\\1$name\\2" body}
+      if {$id != 1 && $numbers} {set name "[format $f [incr n]] $name"}
+      if {!$labels} {regsub "<name>.*</name>" $body "" body} \
+      else {regsub "(<name>).*(</name>)" $body "\\1$name\\2" body}
     } else {
       # Other user defined standard waypoint
       cputx "[mc m63 $name] ..."
-      regsub {.*<type>(.*?)</type>.*} $body {\1} type
+      if {[regsub {.*<type>(.*?)</type>.*} $body {\1} type]} \
+	{regsub "(<sym>).*(</sym>)" $body "\\1$type\\2" body}
       regsub "(<name>).*(</name>)" $body "\\1$name\\2" body
-      regsub "(<sym>).*(</sym>)" $body "\\1$type\\2" body
     }
     regsub "<type>.*?</type>" $body "" body
     append result $body
