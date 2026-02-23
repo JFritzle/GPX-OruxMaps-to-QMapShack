@@ -39,11 +39,10 @@ m51	"Processus %d (%s) démarré"
 
 m60	"Créateur de GPX: '%s'"
 m61	"Convertir le fichier GPX '%s'"
-m62	"Convertir la piste '%s' avec %d points de piste"
+m62	"Convertir la trace '%s' avec %d points de trace"
 m63	"Convertir le point de passage '%s'"
 m64	"Fichier GPX '%s' généré"
 m65	"Temps consommé: %.3f s"
-m66	"Statistiques de piste: %s"
 
 l99	"Console de sortie"
 c99	"Afficher la console de sortie"

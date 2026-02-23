@@ -43,7 +43,6 @@ m62	"Convert track '%s'"
 m63	"Convert waypoint '%s'"
 m64	"GPX file '%s' written"
 m65	"Consumed time: %.3f s"
-m66	"Track statistics: %s"
 
 l99	"Output console"
 c99	"Show output console"
