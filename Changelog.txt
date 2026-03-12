@@ -1,3 +1,7 @@
+2026-03-12
+
+- Emulate "tk busy" on macOS 
+
 2026-02-23
 
 - Fixed output console issues with macOS operating system:
