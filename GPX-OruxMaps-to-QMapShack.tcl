@@ -21,7 +21,7 @@ if {[encoding system] != "utf-8"} {
 package require Tk
 wm withdraw .
 
-set version "2026-04-22"
+set version "2026-05-23"
 set script [file normalize [info script]]
 set title [file tail $script]
 set cwd [pwd]
@@ -546,31 +546,37 @@ proc error_message {message exit_return} {
   eval $exit_return
 }
 
+# Hyperlink to home page
+
+font create hyperfont {*}[font configure TkDefaultFont] -underline 1
+proc hyperlink {widget url} {
+  $widget configure -font hyperfont -fg blue
+  tooltip $widget $url
+  switch $::tcl_platform(os) {
+    "Windows NT" {set exec "exec cmd.exe /C START {} $url"}
+    "Linux"	 {set exec "exec nohup xdg-open $url >/dev/null"}
+    "Darwin"	 {set exec "exec nohup open $url >/dev/null"}
+  }
+  bind $widget <Button-1> "catch {$exec}"
+}
+
 # --- Begin of main window
 
 # Title
 
 font create title_font {*}[font configure TkDefaultFont] \
 	-underline 1 -weight bold
-label .title -text $title -font title_font -fg blue
-pack .title -expand 1 -fill x
-
-set github https://github.com/JFritzle/GPX-QMapShack-to-OruxMaps
-tooltip .title $github
-switch $tcl_platform(os) {
-  "Windows NT"	{set exec "exec cmd.exe /C START {} $github"}
-  "Linux"	{set exec "exec nohup xdg-open $github >/dev/null"}
-  "Darwin"	{set exec "exec nohup open $github >/dev/null"}
-}
-bind .title <Button-1> "catch {$exec}"
+label .title -text $title
+pack .title
+hyperlink .title https://github.com/JFritzle/GPX-QMapShack-to-OruxMaps
 
 frame .f
 pack .f -fill x
 
 # Choose GPX input files
 
-labelframe .gpx_files -labelanchor nw -text [mc l10]:
-pack .gpx_files -in .f -fill x -expand 1 -pady 1
+labelframe .gpx_files -text [mc l10]:
+pack .gpx_files -in .f -fill x -pady 1
 set gpx_files {}
 listbox .gpx_files_list -selectmode browse -activestyle none \
 	-height 3 -listvariable gpx_files -state disabled
@@ -594,9 +600,9 @@ proc choose_gpx_files {} {
 labelframe .gpx_prefix -labelanchor w -text [mc l12]:
 entry .gpx_prefix_value -textvariable gpx.prefix \
 	-width 8 -justify left
-pack .gpx_prefix -in .f -expand 1 -fill x -pady 1
+pack .gpx_prefix -in .f -fill x -pady 1
 pack .gpx_prefix_value -in .gpx_prefix \
-	-side right -anchor e -expand 1 -padx {3 0}
+	-side right -padx {3 0}
 
 # Validate file prefix for valid filename characters
 
@@ -637,7 +643,7 @@ checkbutton .labels -text [mc l03] -variable waypoint.labels \
 checkbutton .numbers -text [mc l04] -variable waypoint.numbers
 
 foreach item {rename symbols labels numbers} {
-  pack .$item -in .f -expand 1 -fill x -pady {2 0}
+  pack .$item -in .f -fill x -pady {2 0}
 }
 
 proc labels_onoff {} {
@@ -652,7 +658,7 @@ frame .buttons
 button .buttons.continue -text [mc b01] -width 12 -command {set action 1}
 button .buttons.cancel -text [mc b02] -width 12 -command {set action 0}
 pack .buttons.continue .buttons.cancel -side left
-pack .buttons -after .f -anchor n -pady 5
+pack .buttons -after .f -pady 5
 
 focus .buttons.continue
 
@@ -674,7 +680,7 @@ proc busy_state {state} {
 
 checkbutton .output -text [mc c99] \
 	-variable console.show -command {console_show_hide ${console.show}}
-pack .output -expand 1 -fill x
+pack .output -fill x
 console_show_hide ${console.show}
 
 wm protocol .konsole WM_DELETE_WINDOW {.output invoke}
@@ -723,9 +729,10 @@ proc font_size_incr {incr} {
   if {$size < 0} {set size [expr round(-$size/[tk scaling])]}
   incr size $incr
   if {$size < 5 || $size > 20} return
-  set fonts {TkDefaultFont TkTextFont TkFixedFont TkTooltipFont title_font}
-  set ::font.size $size
+  set fonts {TkDefaultFont TkTextFont TkFixedFont TkTooltipFont}
   foreach item $fonts {font configure $item -size $size}
+  font configure hyperfont -size [expr 1+$size]
+  set ::font.size $size
   set height [expr [winfo reqheight .title]-2]
 
   if {$::tcl_version > 8.6} {
@@ -799,11 +806,20 @@ proc convert_gpx_file {file} {
   set data [read -nonewline $fd]
   close $fd
 
-  # Check for creator
-  regexp {(^.*<gpx.*?creator=")(.*?)(".*$)} $data {} head body tail
-  cputx [format $::m60 $body]
+  regexp {(^.*<gpx )(.*?)(>.*$)} $data {} head body tail
+  # Add missing "ql" and/or "om" gpx xml extension namespaces
+  if {[string first "xmlns:ql" $body] < 0} {
+    append body " xmlns:ql=\"http://www.qlandkarte.org/xmlschemas/v1.1\""
+  }
+  if {[string first "xmlns:om" $body] < 0} {
+    append body " xmlns:om=\"http://www.oruxmaps.com/oruxmapsextensions/1/0\""
+  }
   # Replace creator
-  set body "GPX-OruxMaps-to-QMapShack"
+  if {[regexp -indices {^.*?creator="(.*?)".*$} $body {} range]} {
+    lassign $range from to
+    cputx [format $::m60 [string range $body $from $to]]
+    set body [string replace $body $from $to "GPX-OruxMaps-to-QMapShack"]
+  }
   set data $head$body$tail
 
   # Get track name
