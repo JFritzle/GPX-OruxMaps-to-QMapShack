@@ -1,3 +1,8 @@
+2026-06-15
+
+- Enable drag-n-drop of input files
+  when Tcl/Tk package "tkdnd" available
+
 2026-05-23
 
 - Fixed: Add potentially missing XML namespaces

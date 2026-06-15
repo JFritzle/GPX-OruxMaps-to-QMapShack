@@ -21,7 +21,7 @@ if {[encoding system] != "utf-8"} {
 package require Tk
 wm withdraw .
 
-set version "2026-05-23"
+set version "2026-06-15"
 set script [file normalize [info script]]
 set title [file tail $script]
 set cwd [pwd]
@@ -595,6 +595,20 @@ proc choose_gpx_files {} {
   set ::gpx_files [lsort -unique $::gpx_files]
 }
 
+# Enable drag-n-drop input files
+# Requires pacalage tkdnd
+if {![catch "package require tkdnd"]} {
+  tkdnd::drop_target register .gpx_files_list DND_Files
+  bind .gpx_files_list <<Drop>> {
+    foreach file %D {
+      if {![file isfile $file]} continue
+      if {[string tolower [file extension $file]] != ".gpx"} continue
+      lappend ::gpx_files $file
+    }
+    return %A
+  }
+}
+
 # GPX output file prefix
 
 labelframe .gpx_prefix -labelanchor w -text [mc l12]:
@@ -798,6 +812,7 @@ proc convert_gpx_file {file} {
 	waypoint.labels labels waypoint.symbols symbols \
 	waypoint.numbers numbers
 
+  set file [file normalize $file]
   cputi "[format $::m61 $file] ..."
   set start [clock milliseconds]
 
@@ -912,7 +927,7 @@ proc convert_gpx_file {file} {
   regsub -line -all {^\s*$\n?} $result {} result
 
   # Write converted GPX file
-  set file $prefix.$file
+  set file "[file dirname $file]/${::gpx.prefix}.[file tail $file]"
   set fd [open $file w]
   puts -nonewline $fd $result
   close $fd
