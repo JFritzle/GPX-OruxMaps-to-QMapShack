@@ -38,7 +38,7 @@ b03	"Cancel"
 m51	"Process %d (%s) started"
 
 m60	"GPX creator: '%s'"
-m61	"Convert GPX file  '%s'"
+m61	"Convert GPX file '%s'"
 m62	"Convert track '%s'"
 m63	"Convert waypoint '%s'"
 m64	"GPX file '%s' written"

@@ -1,3 +1,11 @@
+2026-11-16
+
+- Updated README
+- Show OS and version in output console
+- Fixed hyperlink to to GitHub repository
+- Added scrollbars to list of input files
+- Minor optimizations
+
 2026-06-15
 
 - Enable drag-n-drop of input files

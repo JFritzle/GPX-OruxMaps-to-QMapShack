@@ -21,7 +21,7 @@ if {[encoding system] != "utf-8"} {
 package require Tk
 wm withdraw .
 
-set version "2026-06-15"
+set version 2026-11-16
 set script [file normalize [info script]]
 set title [file tail $script]
 set cwd [pwd]
@@ -317,11 +317,11 @@ if {![info exists locale]} {
 set file [file rootname $script].ini
 if {![file exist $file]} {
   messagebox -title $title -icon error \
-	-message "[mc i01 [file tail $file]]"
+	-message [mc i01 [file tail $file]]
   exit
 } elseif {[catch {source $file} result]} {
   messagebox -title $title -icon error \
-	-message "[mc i00 [file tail $file]]:\n$result"
+	-message [mc i00 [file tail $file]]:\n$result
   exit
 }
 
@@ -480,7 +480,7 @@ bind .konsole <Control-KP_Subtract> {console_font_size_incr -1}
 
 bind .konsole <Configure> {
   if {"%W" != ".konsole"} continue
-  scan [wm geometry %W] "%%dx%%d+%%d+%%d" cols rows x y
+  scan [wm geometry %W] %%dx%%d+%%d+%%d cols rows x y
   set console.geometry "$x $y $cols $rows"
 }
 
@@ -538,6 +538,8 @@ proc cputx {text} {cputs "\[···\] $text"}
 cputw [mc m51 [pid] [file tail [info nameofexecutable]]]
 cputw "Tcl/Tk version $tcl_patchLevel"
 cputw "Script '[file tail $script]' version $version"
+cputw "OS $tcl_platform(os) version $tcl_platform(osVersion)\
+	($tcl_platform(machine))"
 
 # Show error message
 
@@ -568,21 +570,49 @@ font create title_font {*}[font configure TkDefaultFont] \
 	-underline 1 -weight bold
 label .title -text $title
 pack .title
-hyperlink .title https://github.com/JFritzle/GPX-QMapShack-to-OruxMaps
+hyperlink .title https://github.com/JFritzle/GPX-OruxMaps-to-QMapShack
 
 frame .f
 pack .f -fill x
 
-# Choose GPX input files
+# Select GPX input files
 
-labelframe .gpx_files -text [mc l10]:
+frame .gpx_input
+pack .gpx_input -in .f -fill x -pady 1
+label .gpx_input.label -text [mc l10]
+button .gpx_input.button -style Arrow.TButton \
+	-image ArrowDown -command choose_gpx_files
+pack .gpx_input.button -side right -fill y -pady 1
+pack .gpx_input.label -side left -fill x -pady 1
+
+frame .gpx_files
 pack .gpx_files -in .f -fill x -pady 1
 set gpx_files {}
-listbox .gpx_files_list -selectmode browse -activestyle none \
-	-height 3 -listvariable gpx_files -state disabled
-button .gpx_files_button -image ArrowDown -command choose_gpx_files
-pack .gpx_files_button -in .gpx_files -side right -fill y -pady 1
-pack .gpx_files_list -in .gpx_files -side left -fill x -expand 1
+listbox .gpx_files.box -selectmode browse -activestyle none \
+	-height 5 -listvariable gpx_files -state disabled \
+	-yscrollcommand ".gpx_files.sby set" \
+	-xscrollcommand ".gpx_files.sbx set"
+scrollbar .gpx_files.sby -command ".gpx_files.box yview" -orient vertical
+scrollbar .gpx_files.sbx -command ".gpx_files.box xview" -orient horizontal
+pack .gpx_files.sby -side right -fill y
+pack .gpx_files.sbx -side bottom -fill x
+pack .gpx_files.box -fill x -expand 1
+
+# Enable drag-n-drop input files
+# Requires package tkdnd
+if {![catch "package require tkdnd"]} {
+  tkdnd::drop_target register .gpx_files.box DND_Files
+  bind .gpx_files.box <<Drop>> {
+    foreach file %D {
+      if {![file isfile $file]} continue
+      if {[string tolower [file extension $file]] != ".gpx"} continue
+      lappend ::gpx_files $file
+    }
+    set ::gpx_files [lsort -unique $::gpx_files]
+    gpx_files_tooltip
+    return %A
+  }
+}
 
 proc choose_gpx_files {} {
   set types [list [list [mc l11] .gpx]]
@@ -593,25 +623,16 @@ proc choose_gpx_files {} {
   set ::gpx.folder [file dirname [lindex $files 0]]
   set ::gpx_files [lmap file $files {lindex [file split $file] end}]
   set ::gpx_files [lsort -unique $::gpx_files]
+  gpx_files_tooltip
 }
 
-# Enable drag-n-drop input files
-# Requires pacalage tkdnd
-if {![catch "package require tkdnd"]} {
-  tkdnd::drop_target register .gpx_files_list DND_Files
-  bind .gpx_files_list <<Drop>> {
-    foreach file %D {
-      if {![file isfile $file]} continue
-      if {[string tolower [file extension $file]] != ".gpx"} continue
-      lappend ::gpx_files $file
-    }
-    return %A
-  }
+proc gpx_files_tooltip {} {
+  tooltip .gpx_files.box [join [.gpx_files.box get 0 end] \n]
 }
 
 # GPX output file prefix
 
-labelframe .gpx_prefix -labelanchor w -text [mc l12]:
+labelframe .gpx_prefix -labelanchor w -text [mc l12]
 entry .gpx_prefix_value -textvariable gpx.prefix \
 	-width 8 -justify left
 pack .gpx_prefix -in .f -fill x -pady 1
@@ -727,7 +748,7 @@ bind . <Control-KP_Subtract> {font_size_incr -1}
 # Save global settings to folder ini_folder
 
 proc save_script_settings {} {
-  scan [wm geometry .] "%dx%d+%d+%d" width height x y
+  scan [wm geometry .] %dx%d+%d+%d width height x y
   set ::window.geometry "$x $y $width $height"
   save_settings $::ini_folder/$::settings \
 	window.geometry font.size \
@@ -833,7 +854,7 @@ proc convert_gpx_file {file} {
   if {[regexp -indices {^.*?creator="(.*?)".*$} $body {} range]} {
     lassign $range from to
     cputx [format $::m60 [string range $body $from $to]]
-    set body [string replace $body $from $to "GPX-OruxMaps-to-QMapShack"]
+    set body [string replace $body $from $to GPX-OruxMaps-to-QMapShack]
   }
   set data $head$body$tail
 
@@ -964,6 +985,8 @@ proc run_convert_job {} {
     thread::send -async $::wid $script
     vwait ::wdone
     unset ::wdone
+    update idletasks
+    gpx_files_tooltip
     if {$::cancel} break
   }	
   cd $cwd
@@ -1021,7 +1044,7 @@ wm withdraw .
 # Wait until output console window was closed
 
 if {[winfo ismapped .konsole]} {
-  console_write "\n[mc m99]\b"
+  console_write \n[mc m99]\b
   wm protocol .konsole WM_DELETE_WINDOW {}
   bind .konsole <ButtonRelease-3> {destroy .konsole}
   tkwait window .konsole
