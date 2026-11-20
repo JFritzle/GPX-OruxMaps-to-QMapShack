@@ -992,8 +992,6 @@ proc convert_gpx_file {file} {
 
 proc run_convert_job {} {
   set ::cancel 0
-  set cwd [pwd]
-  cd ${::gpx.folder}
   while {[llength $::gpx_files]} {
     set ::gpx_files [lassign $::gpx_files file]
     set script ""
@@ -1011,7 +1009,6 @@ proc run_convert_job {} {
     gpx_files_tooltip
     if {$::cancel} break
   }	
-  cd $cwd
 }
 
 # Show main window (at saved position)
