@@ -21,7 +21,7 @@ if {[encoding system] != "utf-8"} {
 package require Tk
 wm withdraw .
 
-set version 2026-11-16
+set version 2026-11-20
 set script [file normalize [info script]]
 set title [file tail $script]
 set cwd [pwd]
@@ -174,7 +174,6 @@ foreach {item option value} {
 . selectforeground $colorHighlightText
 TButton borderwidth 2
 TButton padding "{0 -2 0 $yb}"
-TCombobox arrowsize 15
 TCombobox padding 0
 TCheckbutton padding "{0 $yc}"
 TRadiobutton padding "{0 $yc}"
@@ -190,8 +189,13 @@ TCombobox selectbackground {!focus $colorWindow}
 TCombobox selectforeground {!focus $colorWindowText}
 TCheckbutton background {focus $colorFocus}
 TRadiobutton background {focus $colorFocus}
-Arrow.TButton bordercolor {focus $colorWindowFrame}
 } {style map $item -$option [eval list {*}$value]}
+
+# Arrow down button
+
+style layout TDownbutton {Downbutton.downarrow -sticky ns}
+style configure TDownbutton {*}[style configure TCombobox -arrowsize]
+style map TDownbutton {*}[style map TButton]
 
 # Global widget bindings
 
@@ -222,16 +226,6 @@ proc button-1-press {W X Y} {
     TCombobox	{$w instate !disabled {ttk::combobox::Press "" $w \
 		[expr $X-[winfo rootx $w]] [expr $Y-[winfo rooty $w]]}}
   }
-}
-
-# Bitmap arrow down
-
-image create bitmap ArrowDown -data {
-  #define x_width 9
-  #define x_height 7
-  static char x_bits[] = {
-  0x00,0xfe,0x00,0xfe,0xff,0xff,0xfe,0xfe,0x7c,0xfe,0x38,0xfe,0x10,0xfe
-  };
 }
 
 # Recursively find children
@@ -448,14 +442,18 @@ foreach item {Consolas "Ubuntu Mono" "Noto Mono" "Liberation Mono" "SF Mono"} {
   set family $item
   break
 }
-font create console_font -family $family -size ${console.font.size}
+font create ConsoleFont -family $family -size ${console.font.size}
 
-text .konsole.txt -font console_font -wrap none -setgrid 1 \
+text .konsole.txt -font ConsoleFont -wrap none -setgrid 1 \
 	-state disabled -undo 0 -bg white \
 	-width 120 -xscrollcommand {.konsole.sbx set} \
 	-height 24 -yscrollcommand {.konsole.sby set}
-scrollbar .konsole.sbx -orient horizontal -command {.konsole.txt xview}
-scrollbar .konsole.sby -orient vertical   -command {.konsole.txt yview}
+style layout H.Console.TScrollbar [style layout Horizontal.TScrollbar]
+scrollbar .konsole.sbx -command {.konsole.txt xview} -orient horizontal \
+	-style H.Console.TScrollbar
+style layout V.Console.TScrollbar [style layout Vertical.TScrollbar]
+scrollbar .konsole.sby -command {.konsole.txt yview} -orient vertical \
+	-style V.Console.TScrollbar
 grid .konsole.txt -row 1 -column 1 -sticky nswe
 grid .konsole.sby -row 1 -column 2 -sticky ns
 grid .konsole.sbx -row 2 -column 1 -sticky we
@@ -487,29 +485,36 @@ bind .konsole <Configure> {
 proc console_font_size_incr {incr} {
   set px [.konsole.txt xview]
   set py [.konsole.txt yview]
-  set size [font configure console_font -size]
+  set size [font configure ConsoleFont -size]
   incr size $incr
   if {$size < 5 || $size > 20} return
-  font configure console_font -size $size
+  font configure ConsoleFont -size $size
   set ::console.font.size $size
+  set height [font metrics ConsoleFont -linespace]
+  style configure Console.TScrollbar -arrowsize $height
   update idletasks
   .konsole.txt xview moveto [lindex $px 0]
   .konsole.txt yview moveto [lindex $py 0]
 }
+console_font_size_incr 0
 
 proc console_write {text} {
   .konsole.txt configure -state normal
-  foreach item [split $text \n] {
-    if {[string index $item 0] == "\r"} {
+  if {$text == ""} {
+    .konsole.txt insert end \n
+  } else {
+    foreach item [split $text \n] {
+      if {[string index $item 0] == "\r"} {
 	set item [string range $item 1 end]
 	.konsole.txt delete end-2l end-1l
-    }
-    if {[string index $item end] == "\b"} {
+      }
+      if {[string index $item end] == "\b"} {
 	set item [string range $item 0 end-1]
-    } else {
+      } else {
 	append item \n
+      }
+      .konsole.txt insert end $item
     }
-    .konsole.txt insert end $item
   }
   .konsole.txt configure -state disabled
   if {[winfo ismapped .konsole]} {.konsole.txt see end}
@@ -550,9 +555,9 @@ proc error_message {message exit_return} {
 
 # Hyperlink to home page
 
-font create hyperfont {*}[font configure TkDefaultFont] -underline 1
+font create HyperFont {*}[font configure TkDefaultFont] -underline 1
 proc hyperlink {widget url} {
-  $widget configure -font hyperfont -fg blue
+  $widget configure -font HyperFont -fg blue
   tooltip $widget $url
   switch $::tcl_platform(os) {
     "Windows NT" {set exec "exec cmd.exe /C START {} $url"}
@@ -575,28 +580,38 @@ hyperlink .title https://github.com/JFritzle/GPX-OruxMaps-to-QMapShack
 frame .f
 pack .f -fill x
 
-# Select GPX input files
+# GPX input files
 
-frame .gpx_input
+labelframe .gpx_input -labelanchor w -text [mc l10]
+button .gpx_input_button -style TDownbutton -command choose_gpx_files
 pack .gpx_input -in .f -fill x -pady 1
-label .gpx_input.label -text [mc l10]
-button .gpx_input.button -style Arrow.TButton \
-	-image ArrowDown -command choose_gpx_files
-pack .gpx_input.button -side right -fill y -pady 1
-pack .gpx_input.label -side left -fill x -pady 1
+pack .gpx_input_button -in .gpx_input -fill y -side right -padx {3 0}
 
 frame .gpx_files
 pack .gpx_files -in .f -fill x -pady 1
 set gpx_files {}
-listbox .gpx_files.box -selectmode browse -activestyle none \
-	-height 5 -listvariable gpx_files -state disabled \
-	-yscrollcommand ".gpx_files.sby set" \
-	-xscrollcommand ".gpx_files.sbx set"
-scrollbar .gpx_files.sby -command ".gpx_files.box yview" -orient vertical
-scrollbar .gpx_files.sbx -command ".gpx_files.box xview" -orient horizontal
-pack .gpx_files.sby -side right -fill y
-pack .gpx_files.sbx -side bottom -fill x
-pack .gpx_files.box -fill x -expand 1
+listbox .gpx_files.box -selectmode extended -activestyle none \
+	-height 5 -listvariable gpx_files \
+	-yscrollcommand {.gpx_files.sby set} \
+	-xscrollcommand {.gpx_files.sbx set}
+scrollbar .gpx_files.sby -command {.gpx_files.box yview} -orient vertical
+scrollbar .gpx_files.sbx -command {.gpx_files.box xview} -orient horizontal
+grid .gpx_files.box -row 1 -column 1 -sticky nswe
+grid .gpx_files.sby -row 1 -column 2 -sticky ns
+grid .gpx_files.sbx -row 2 -column 1 -sticky we
+grid columnconfigure .gpx_files 1 -weight 1
+
+proc choose_gpx_files {} {
+  set types [list [list [mc l11] .gpx]]
+  set files [tk_getOpenFile -parent . -title "$::title - [mc l10]" \
+	-initialdir ${::gpx.folder} -filetypes $types -multiple 1]
+  if {![llength $files]} return
+  set ::gpx.folder [file dirname [lindex $files 0]]
+  foreach item $files {lappend ::gpx_files $item}
+  set ::gpx_files [lsort -unique $::gpx_files]
+  gpx_files_view
+  gpx_files_tooltip
+}
 
 # Enable drag-n-drop input files
 # Requires package tkdnd
@@ -607,37 +622,38 @@ if {![catch "package require tkdnd"]} {
       if {![file isfile $file]} continue
       if {[string tolower [file extension $file]] != ".gpx"} continue
       lappend ::gpx_files $file
+      set ::gpx.folder [file dirname $file]
     }
     set ::gpx_files [lsort -unique $::gpx_files]
+    after idle ".gpx_files.box xview [expr [string length ${::gpx.folder}]+1]"
+    gpx_files_view
     gpx_files_tooltip
     return %A
   }
 }
 
-proc choose_gpx_files {} {
-  set types [list [list [mc l11] .gpx]]
-  set files [tk_getOpenFile -parent . -multiple 1 \
-	-initialdir ${::gpx.folder} -filetypes $types \
-	-title "$::title - [mc l10]"]
-  if {![llength $files]} return
-  set ::gpx.folder [file dirname [lindex $files 0]]
-  set ::gpx_files [lmap file $files {lindex [file split $file] end}]
-  set ::gpx_files [lsort -unique $::gpx_files]
-  gpx_files_tooltip
+proc gpx_files_view {} {
+  set w .gpx_files.box
+  set f [$w cget -font]
+  set h [font measure $f ${::gpx.folder}/]
+  set l 0
+  foreach item ${::gpx_files} {set l [expr max($l,[font measure $f $item])]}
+  after idle "$w xview moveto [expr double($h)/double($l)]"
 }
-
 proc gpx_files_tooltip {} {
   tooltip .gpx_files.box [join [.gpx_files.box get 0 end] \n]
+}
+bind .gpx_files.box <Delete> {
+  foreach item [lreverse [%W curselection]] {%W delete $item}
+  gpx_files_tooltip
 }
 
 # GPX output file prefix
 
 labelframe .gpx_prefix -labelanchor w -text [mc l12]
-entry .gpx_prefix_value -textvariable gpx.prefix \
-	-width 8 -justify left
+entry .gpx_prefix_value -textvariable gpx.prefix -width 8 -justify left
 pack .gpx_prefix -in .f -fill x -pady 1
-pack .gpx_prefix_value -in .gpx_prefix \
-	-side right -padx {3 0}
+pack .gpx_prefix_value -in .gpx_prefix -side right -padx {3 0}
 
 # Validate file prefix for valid filename characters
 
@@ -766,9 +782,10 @@ proc font_size_incr {incr} {
   if {$size < 5 || $size > 20} return
   set fonts {TkDefaultFont TkTextFont TkFixedFont TkTooltipFont}
   foreach item $fonts {font configure $item -size $size}
-  font configure hyperfont -size [expr 1+$size]
+  font configure HyperFont -size [expr 1+$size]
+  update idletasks
   set ::font.size $size
-  set height [expr [winfo reqheight .title]-2]
+  set height [expr [winfo reqheight .title]-4]
 
   if {$::tcl_version > 8.6} {
     set scale [expr ($height+2)*0.0065]
@@ -787,9 +804,14 @@ proc font_size_incr {incr} {
     foreach item {TCheckbutton TRadiobutton} \
 	{style configure $item -indicatorsize $size -indicatormargin $margin}
   }
-  update idletasks
+
+  set size [expr $height*0.75]
+  style configure TDownbutton -arrowsize $size
+  style configure TCombobox -arrowsize $size
+  style configure TScrollbar -arrowsize $size
 
   resize_toplevel_window .
+  gpx_files_view
 }
 
 # Check selection for completeness
